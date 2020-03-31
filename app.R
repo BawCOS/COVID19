@@ -502,8 +502,6 @@ server <- function(input, output) {
             geom_line(linetype = "dashed", size = 1) +
             geom_ribbon(alpha=0.3, fill = "tan3") + 
             labs(x = "Date", y = "Projected Daily Hospitalizations") +
-            theme(axis.title = element_text(face = "bold",size = 11,family = "sans"),
-                  axis.text.x = element_text(angle = 60, hjust = 1)) +
             scale_x_date(date_breaks = "2 week")+
           theme_bw()+  
           theme(
@@ -513,7 +511,9 @@ server <- function(input, output) {
             ,panel.border = element_blank()
           ) +
           theme(axis.line = element_line(color = "black"))+
-          theme(legend.position = "top")
+          theme(legend.position = "top")+
+          theme(axis.title = element_text(face = "bold",size = 11,family = "sans"),
+              axis.text.x = element_text(angle = 60, hjust = 1)) 
         
     })
     
