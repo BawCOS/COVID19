@@ -211,9 +211,9 @@ ui <- tagList(
                       valueBoxOutput("HospUtlzChange", width = 4)
                     ),
                     fluidRow( 
-                      box(title = "IHME Hospitalization Projections",plotOutput("IHME_State_Hosp")),
-                      box(title = "Daily New Cases",plotOutput("LocalHealthPlot1")),
-                      box(title = "Total Cases",plotOutput("LocalHealthPlot2"))
+                      box(title = "IHME Hospitalization Projections",plotOutput("IHME_State_Hosp",height = 300)),
+                      box(title = "Daily New Cases",plotOutput("LocalHealthPlot1",height = 300)),
+                      box(title = "Total Cases",plotOutput("LocalHealthPlot2",height = 300))
                     )
                   )
                   ####### END LOCAL HEALTH RISK TAB #######
@@ -339,7 +339,7 @@ CovidCasesCumChart<-function(ChosenBase, Radius, IncludedCounties, IncludedHospi
   
   #Plot the forecasts from above but include the actual values from the test data to compare accuracy.
   #plot for local area cumulative
-  ggplot(Chart2DataSub) + geom_line(aes(x=ForecastDate, y=value, colour = variable), size = 1) +
+  ggplot(Chart2DataSub,height = 250) + geom_line(aes(x=ForecastDate, y=value, colour = variable), size = 1) +
     scale_colour_manual(values=c("Blue", "Orange", "Red"))+
     xlab('Date') +
     ylab('Number of People') +
@@ -475,7 +475,8 @@ server <- function(input, output) {
                               #colorAxis="{colors:'grey', 'red']}",
                               displayMode="regions", 
                               resolution="provinces",
-                              width=400))
+                              width=600,
+                              height = 400))
     
   })
   
