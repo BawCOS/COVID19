@@ -58,8 +58,8 @@ HospitalInfo$BEDS <- ifelse(HospitalInfo$BEDS < 0, 0, HospitalInfo$BEDS)
 temp <- tempfile()
 download.file("https://ihmecovid19storage.blob.core.windows.net/latest/ihme-covid19.zip", temp, mode="wb")
 filename = paste(format(as.Date(Sys.Date()), "%Y"), "_",
-                 format(as.Date(Sys.Date()), "%m"), "_",
-                 format(as.Date(Sys.Date()-1), "%d"),
+                 format(as.Date(Sys.Date()-1), "%m"), "_",
+                 format(as.Date(Sys.Date()-2), "%d"),
                  "/Hospitalization_all_locs.csv",
                  sep = "")
 unzip(temp, files = filename)
@@ -125,8 +125,18 @@ ui <- tagList(
                              ),
                              br(),
                              actionButton("refresh", "Refresh", width = "90%"),
-                             hr()
+                             hr(),
+                             fluidRow(
+                               valueBox("LOW RISK", subtitle ="Mission Risk",color= "green",width = 12)
+                             ),
+                             fluidRow(
+                               valueBox("MEDIUM RISK", subtitle ="Installation Health Risk",color= "yellow", width = 12)
+                             ),
+                             fluidRow(
+                               valueBox("HIGH RISK", subtitle ="Local Health Risk",color= "red",width = 12)
+                             )
                          )
+
         ),
         
         dashboardBody(
@@ -146,11 +156,7 @@ ui <- tagList(
                        $("header").find("nav").append(\'<span class="myClass"> Tailored Risk Assesments </span>\');
                        })
                        ')),
-            fluidRow(
-                valueBox("LOW RISK", subtitle ="Mission Risk",color= "green",icon = icon("smile")),
-                valueBox("MEDIUM RISK", subtitle ="Installation Health Risk",color= "yellow",icon = icon("meh")),
-                valueBox("HIGH RISK", subtitle ="Local Health Risk",color= "red",icon = icon("frown"))
-            ),
+
             
             tabsetPanel(id = "tabs",
                         ####### START OVERALL RISK TAB #######
