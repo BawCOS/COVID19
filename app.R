@@ -7,38 +7,40 @@
 #    http://shiny.rstudio.com/
 # 
 #import
-pacman::p_load(dplyr,
-               ggplot2,
-               tidyverse,
-               tidyr,
-               shinydashboard,
-               shiny,
-               geosphere,
-               scales,
-               googleVis,
-               reshape2,
-               usmap,
-               data.table,
-               plyr,
-               choroplethr,
-               choroplethrMaps
-)
+# pacman::p_load(dplyr,
+#                ggplot2,
+#                tidyverse,
+#                tidyr,
+#                shinydashboard,
+#                shiny,
+#                geosphere,
+#                scales,
+#                googleVis,
+#                reshape2,
+#                usmap,
+#                data.table,
+#                plyr,
+#                choroplethr,
+#                choroplethrMaps,
+#                DT
+# )
 
-# library(dplyr)
-# library(ggplot2)
-# #library(tidyverse)
-# library(tidyr)
-# library(shinydashboard)
-# library(shiny)
-# library(geosphere)
-# library(scales)
-# library(googleVis)
-# #library(reshape2)
-# library(usmap)
-# library(data.table)
-# library(plyr)
-# #library(choroplethr)
-# #library(choroplethrMaps)
+library(dplyr)
+library(ggplot2)
+#library(tidyverse)
+library(tidyr)
+library(shinydashboard)
+library(shiny)
+library(geosphere)
+library(scales)
+library(googleVis)
+#library(reshape2)
+library(usmap)
+library(data.table)
+library(plyr)
+#library(choroplethr)
+#library(choroplethrMaps)
+library(DT)
 
 
 
@@ -57,9 +59,9 @@ HospitalInfo$BEDS <- ifelse(HospitalInfo$BEDS < 0, 0, HospitalInfo$BEDS)
 #Read in IHME data
 temp <- tempfile()
 download.file("https://ihmecovid19storage.blob.core.windows.net/latest/ihme-covid19.zip", temp, mode="wb")
-filename = paste(format(as.Date(Sys.Date()), "%Y"), "_",
+filename = paste(format(as.Date(Sys.Date()-1), "%Y"), "_",
                  format(as.Date(Sys.Date()-1), "%m"), "_",
-                 format(as.Date(Sys.Date()-2), "%d"),
+                 format(as.Date(Sys.Date()-1), "%d"), ".1",
                  "/Hospitalization_all_locs.csv",
                  sep = "")
 unzip(temp, files = filename)
@@ -77,10 +79,30 @@ BaseList<-sort(AFBaseLocations$Base, decreasing = FALSE)
 HospitalList <- HospitalInfo$NAME
 CountyList <- CountyInfo$County
 
+#Create National Data table on summary page
+NationalDataTable<-CovidConfirmedCases
+NationalDataTable$State<-as.factor(NationalDataTable$State)
+NationalDataTable<-NationalDataTable[,-c(1,2,4)]
+NationalDataTable<-aggregate(.~State, NationalDataTable, sum)
+RateofCovidChange<-rev(NationalDataTable)[c(1:7)]
+RateofCovidChange<-ceiling(rowSums(RateofCovidChange[1:6]-RateofCovidChange[2:7])/6)
+
+NationalDeathTable<-CovidDeaths
+NationalDeathTable$State<-as.factor(NationalDeathTable$State)
+NationalDeathTable<-NationalDeathTable[,-c(1,2,4)]
+NationalDeathTable<-aggregate(.~State, NationalDeathTable, sum)
+RateofDeathChange<-rev(NationalDeathTable)[c(1:7)]
+RateofDeathChange<-ceiling(rowSums(RateofDeathChange[1:6]-RateofDeathChange[2:7])/6)
+
+NationalDataTable<-data.frame(NationalDataTable$State, NationalDataTable[,length(NationalDataTable)],RateofCovidChange, NationalDeathTable[,length(NationalDeathTable)], RateofDeathChange)
+colnames(NationalDataTable)<-c("State","Total Cases","Average New Cases Per Day", "Total Deaths","Average New Deaths Per Day")
+NationalDataTable$`Cases Per 1000 People`<-c(731449,4822023,2949131,6553255,38041430,5187582,3590347,633427,917092,19317568,9919945,1392313,3074186,1595728,12875255,6537334,2885905,4380415,4601893,6646144,5884563,1329192,9883360,5379139,6021988,2984926,1005141,9752073,699628,1855525,1320718,8864590,2085538,2758931,19570261,11544225,3814820,3899353,12763536,1050292,4723723,833354,6456243,26059203,2855287,8185867,626011,6897012,5726398,1855413,576412)
+NationalDataTable$`Cases Per 1000 People`<-round(NationalDataTable$`Total Cases`/(NationalDataTable$`Cases Per 1000 People`/1000))
+
 
 #Build UI
 ui <- tagList(
-  dashboardPage(
+  dashboardPage(skin = "black",
     dashboardHeader(title = "COVID-19 Risk Dashboard",
                     titleWidth = 300,
                     dropdownMenu(
@@ -158,47 +180,21 @@ ui <- tagList(
                        ')),
       
       tabsetPanel(id = "tabs",
-                  ####### START OVERALL RISK TAB #######
+                  ####### START SUMMARY TAB #######
                   tabPanel(
                     title = "Summary",
                     fluidRow( 
-                      box(title = "National Impact Map",solidHeader = T, align = "center", htmlOutput("SummaryPlot")),
-                      box(title = "Local Impact Map", plotOutput("CountySummary", height = 250))
+                      box(title = "National Impact Map",solidHeader = T, align = "center", htmlOutput("SummaryPlot"))
                     ),
                     fluidRow( 
-                      box(title = "National Stats ","insert stats here"),
-                      box(title = "Local Stats", "insert stats here")
+                      box(title = "National Statistics", solidHeader=T, align = "left", column(width = 12, DT::dataTableOutput("NationalDataTable1"), style = "height:240px;overflow-y: scroll;overflow-x:scroll"))
                     )
                   ),
-                  ####### END OVERALL RISK TAB #######
+                  ####### END SUMMARY TAB #######
                   
-                  ####### START MISSION RISK TAB #######
+                  ####### START CURRENT LOCAL HEALTH  TAB #######
                   tabPanel(
-                    title = "Mission",
-                    value = plotOutput("plot")
-                  ),
-                  ####### END MISSION RISK TAB #######
-                  
-                  ####### START INSTALLATION HEALTH RISK TAB #######
-                  tabPanel(
-                    title = "Installation Health", 
-                    fluidRow(
-                      # A static valueBox
-                      valueBoxOutput("TotalPopulation"),
-                      valueBox(2, subtitle ="Installation Specific Deaths", color= "red",icon = icon("skull")),
-                      valueBox("85%", subtitle = "Installation Medical Utilization", color = "teal", icon = icon("hospital"))
-                    ),
-                    box(status = "primary", width = 13, solidHeader = T, "Current Risk Level: LOW ", align = "center"),
-                    fluidRow( 
-                      box(title = "Chart 1 Here", "Box content"),
-                      box(title = "Chart 2 Here", "Box content")
-                    )
-                  ),
-                  ####### END INSTALLATION HEALTH RISK TAB #######
-                  
-                  ####### START LOCAL HEALTH RISK TAB #######
-                  tabPanel(
-                    title = "Local Health",
+                    title = "Current Local Health",
                     fluidRow(
                       # A static valueBox
                       valueBoxOutput("CovidCases"),
@@ -211,27 +207,60 @@ ui <- tagList(
                       valueBoxOutput("HospUtlzChange", width = 4)
                     ),
                     fluidRow( 
-                      box(title = "IHME Hospitalization Projections",plotOutput("IHME_State_Hosp",height = 300)),
-                      box(title = "Daily New Cases",plotOutput("LocalHealthPlot1",height = 300)),
-                      box(title = "Total Cases",plotOutput("LocalHealthPlot2",height = 300))
+                      box(title = "Daily Reports",plotOutput("LocalHealthPlot1",height = 300)),
+                      box(title = "Total Reports",plotOutput("LocalHealthPlot2",height = 300))
+                    ),
+                    fluidRow(
+                      box(title = "Local Impact Map", plotOutput("CountySummary", height = 250),height = 300),
+                      box(title = "Local County Statistics", solidHeader=T, align = "left", column(width = 12, DT::dataTableOutput("CountyDataTable1"), style = "height:240px;overflow-y: scroll"), height = 300)
+                    )
+                  ),
+                  ####### END CURRENT LOCAL HEALTH TAB #######
+                  
+                  ####### START PROJECTIONS TAB #######
+                  tabPanel(
+                    title = "Local Health Projections",
+                    fluidRow(
+                      valueBoxOutput("TotalPopulation")
+                    ),
+                    fluidRow(
+                      box(plotOutput("IHME_State_Hosp",height = 400)),
+                      box("insert CHIME projections here",height = 400))
+                  ),
+                  ####### END PROJECTION TAB #######
+      
+                  ####### START INSTALLATION HEALTH RISK TAB #######
+                  tabPanel(
+                    title = "Installation Health", 
+                    fluidRow(
+                      valueBox(2, subtitle ="Installation Specific Deaths", color= "red",icon = icon("skull")),
+                      valueBox("85%", subtitle = "Installation Medical Utilization", color = "teal", icon = icon("hospital"))
+                    ),
+                    box(status = "primary", width = 13, solidHeader = T, "Current Risk Level: LOW ", align = "center"),
+                    fluidRow( 
+                      box(title = "Chart 1 Here", "Box content"),
+                      box(title = "Chart 2 Here", "Box content")
                     )
                   )
-                  ####### END LOCAL HEALTH RISK TAB #######
-      )
-                       )
+                  ####### END INSTALLATION HEALTH RISK TAB #######
+          )
+        )
       ),
-  tags$footer("created by the 4 AFITeers", align = "center", style = "
-              position:absolute;
-              bottom:50;
-              width:100%;
-              height:25px;   /* Height of the footer */
-              color: grey;
-              padding: 0px;
-              background-color: transparent;
-              z-index: 1000;")
-  )
+
+tags$footer("created by the 4 AFITeers", align = "center", style = "
+            position:absolute;
+            bottom:50;
+            width:100%;
+            height:25px;   /* Height of the footer */
+            color: grey;
+            padding: 0px;
+            background-color: transparent;
+            z-index: 1000;")
+)
 #Close UI  
 ###############################
+
+
 CalculateCounties<-function(ChosenBase, Radius, IncludedCounties){
   #Finds which counties in given radius. Also Give county statistics
   TotalPopulation <-  sum(IncludedCounties$Population)
@@ -264,7 +293,7 @@ HospitalIncreases<-function(ChosenBase, Radius, IncludedCounties, IncludedHospit
   TotalHospital<-sum(CovidCounties[,ncol(CovidCounties)])
   NotHospital<-sum(CovidCounties[,n])
   StillHospital<-ceiling((TotalHospital-NotHospital))
-  Upper<- round(((StillHospital+changeC*.314)/TotalBeds+.6)*100,1)
+  Upper<- round(((StillHospital+changeC*.1)/TotalBeds+.6)*100,1)
   #Lower<- round(((StillHospital+changeC*.207)/TotalBeds+.55)*100,1)
   paste(Upper," %", sep = "") 
 }
@@ -291,7 +320,7 @@ CovidCasesPerDayChart<-function(ChosenBase, Radius, IncludedCounties, IncludedHo
   
   ForecastDate<- seq(as.Date("2020-02-15"), length=(length(DailyNewDeaths)), by="1 day")
   Chart1Data<-cbind.data.frame(ForecastDate,DailyNewCases,DailyNewHospitalizations,DailyNewDeaths)
-  colnames(Chart1Data)<-c("ForecastDate","New Cases","New Hospitalizations","New Deaths")
+  colnames(Chart1Data)<-c("ForecastDate","New Cases","New Hospitalizations","New Fatalities")
   Chart1DataSub <- melt(data.table(Chart1Data), id=c("ForecastDate"))
   
   #Plot the forecasts from above but include the actual values from the test data to compare accuracy.
@@ -334,7 +363,7 @@ CovidCasesCumChart<-function(ChosenBase, Radius, IncludedCounties, IncludedHospi
   
   ForecastDate<- seq(as.Date("2020-02-15"), length=(length(CumDailyDeaths)), by="1 day")
   Chart2Data<-cbind.data.frame(ForecastDate,CumDailyCovid,CumHospitalizations,CumDailyDeaths)
-  colnames(Chart2Data)<-c("ForecastDate","Total Cases","Total Hospitalizations","Total Deaths")
+  colnames(Chart2Data)<-c("ForecastDate","Total Cases","Total Hospitalizations","Total Fatalities")
   Chart2DataSub <- melt(data.table(Chart2Data), id=c("ForecastDate"))
   
   #Plot the forecasts from above but include the actual values from the test data to compare accuracy.
@@ -357,6 +386,16 @@ CovidCasesCumChart<-function(ChosenBase, Radius, IncludedCounties, IncludedHospi
     theme(legend.position = "top")
 }
 
+
+#Create Data Table for local statistics
+GetLocalDataTable<-function(IncludedCounties){
+  CovidCounties<-subset(CovidConfirmedCases, CountyFIPS %in% IncludedCounties$FIPS)
+  DeathCounties<-subset(CovidDeaths, CountyFIPS %in% IncludedCounties$FIPS)
+  CountyDataTable<-cbind(IncludedCounties,rev(CovidCounties)[,1],rev(DeathCounties)[,1])
+  CountyDataTable<-data.frame(CountyDataTable$State,CountyDataTable$County,CountyDataTable$Population, rev(CountyDataTable)[,2], rev(CountyDataTable)[,1])
+  colnames(CountyDataTable)<-c("State","County","Population","Total Confirmed Cases","Total Fatalities" )
+  CountyDataTable
+}
 
 # CovidCountyChoropleth<-function(ChosenBase, Radius){
 # 
@@ -384,6 +423,7 @@ CovidCasesCumChart<-function(ChosenBase, Radius, IncludedCounties, IncludedHospi
 # Define server logic, this is where all plots are generated. 
 server <- function(input, output) {
   
+  
   GetCounties<-reactive({
     BaseStats<-dplyr::filter(AFBaseLocations, Base == input$Base)
     for (i in 1:3143) {
@@ -407,7 +447,7 @@ server <- function(input, output) {
   #Finds which counties in given radius. Also Give county statistics
   output$TotalPopulation <- renderValueBox({
     MyCounties<-GetCounties()
-    valueBox(subtitle = "Total Air Force Cases",
+    valueBox(subtitle = "Total Regional Population",
              comma(CalculateCounties(input$Base,input$Radius, MyCounties)),
              icon = icon("list-ol")
     )
@@ -419,7 +459,8 @@ server <- function(input, output) {
     MyCounties<-GetCounties()
     valueBox(subtitle = "Local Cases",
              comma(CalculateCovid(input$Base,input$Radius,MyCounties)),
-             icon = icon("list-ol")
+             icon = icon("list-ol"),
+             color = "light-blue"
     )
     
   })
@@ -427,10 +468,10 @@ server <- function(input, output) {
   # Finds Covid Cases and statistics on covid per county
   output$LocalCovidDeaths <- renderValueBox({
     MyCounties<-GetCounties()
-    valueBox(subtitle = "Local Deaths",
+    valueBox(subtitle = "Local Fatalities",
              comma(CalculateDeaths(input$Base, input$Radius, MyCounties)),
              icon = icon("skull"),
-             color = "red"
+             color = "blue"
     )
   })
   
@@ -441,7 +482,7 @@ server <- function(input, output) {
     valueBox(subtitle = "Local Hospital Utilization",
              HospitalIncreases(input$Base,input$Radius, MyCounties, MyHospitals),
              icon = icon("hospital"),
-             color = "teal")
+             color = "navy")
   })
   
   #Create first plot of local health population 
@@ -504,9 +545,12 @@ server <- function(input, output) {
     ggplot(data=IHME_State, aes(x=date, y=allbed_mean, ymin=allbed_lower, ymax=allbed_upper)) +
       geom_line(linetype = "dashed", size = 1) +
       geom_ribbon(alpha=0.3, fill = "tan3") + 
-      labs(x = "Date", y = "Projected Daily Hospitalizations") +
+      labs(title = paste("IHME Hospitalization Projections for ",toString(BaseState$State[1]), " Region", sep = ""), 
+           x = "Date", 
+           y = "Projected Daily Hospitalizations") +
       theme_bw() +
-      theme(axis.title = element_text(face = "bold",size = 11,family = "sans"),
+      theme(plot.title = element_text(face = "bold", size = 18, family = "sans"),
+            axis.title = element_text(face = "bold",size = 11,family = "sans"),
             axis.text.x = element_text(angle = 60, hjust = 1), 
             axis.line = element_line(color = "black"),
             legend.position = "top",
@@ -526,7 +570,7 @@ server <- function(input, output) {
     
     valueBox(paste("+",toString(changeC)),
              subtitle = "New Confirmed Cases", 
-             color = "aqua")
+             color = "light-blue")
   })
   
   output$DeathChangeLocal <- renderValueBox({
@@ -536,8 +580,8 @@ server <- function(input, output) {
     changeC <- sum(CovidCounties[x] - CovidCounties[x-1])
     
     valueBox(paste("+",toString(changeC)),
-             subtitle = "New Confirmed Deaths", 
-             color = "red")
+             subtitle = "New Confirmed Fatalities", 
+             color = "blue")
   })
   
   output$HospUtlzChange <- renderValueBox({
@@ -557,31 +601,43 @@ server <- function(input, output) {
     TotalHospital<-sum(CovidCounties[,ncol(CovidCounties)])
     NotHospital<-sum(CovidCounties[,n])
     StillHospital<-ceiling((TotalHospital-NotHospital))
-    Upper<-(signif(((StillHospital+changeC*.314)/TotalBeds+.6)*100,3))
+    Upper<-(signif(((StillHospital+changeC*.1)/TotalBeds+.6)*100,3))
     #Lower<-(signif(((StillHospital+changeC*.207)/TotalBeds+.6)*100,3))
     
     # Yesterday
     TotalHospitaly<-sum(CovidCounties[,ncol(CovidCounties)-1])
     NotHospitaly<-sum(CovidCounties[,n-1])
     StillHospitaly<-ceiling((TotalHospitaly-NotHospitaly))
-    Uppery<-(signif(((StillHospitaly+changey*.314)/TotalBeds+.6)*100,3))
+    Uppery<-(signif(((StillHospitaly+changey*.1)/TotalBeds+.6)*100,3))
     #Lowery<-(signif(((StillHospitaly+changey*.207)/TotalBeds+.6)*100,3))
     
     chng <- round((Upper-Uppery)/2, 1)
     
     if (chng < 0) {
-      sign <- "-"
+      sign <- ""
     } else {
       sign <- "+"
     }
     
     valueBox(paste(sign,toString(chng),"%"),
              subtitle = "Hospital Utilization Change", 
-             color = "teal")
+             color = "navy")
   })
   
   
-  # ouput$NationalDataTable
+  #Render National Data Table on summary page
+  output$NationalDataTable1<-DT::renderDataTable({
+    NationalDataTable <- DT::datatable(data.frame(NationalDataTable),rownames = FALSE, options = list(dom = 't',ordering = F))
+    NationalDataTable
+    
+  })
+  
+  output$CountyDataTable1<-DT::renderDataTable({
+    MyCounties<-GetCounties()
+    dt<-GetLocalDataTable(MyCounties)
+    dt<-DT::datatable(dt, rownames = FALSE, options = list(dom = 't',ordering = F))
+    dt
+  })
   
   
   # 
